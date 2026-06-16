@@ -50,38 +50,16 @@ jobs:
       - name: Generate aboutLibraries.json
         run: ./gradlew exportLibraryDefinitions
 
-      - name: Build Release APK
-        run: ./gradlew androidApp:assembleRelease
+      # Build a debug APK: Gradle auto-signs it with the universal Android
+      # debug key, so it installs on any device without needing a release
+      # keystore or any signing secrets. Intended for personal/test builds.
+      - name: Build debug APK
+        run: ./gradlew androidApp:assembleDebug
 
-      - name: Check build-tools version
-        id: build-tools
+      - name: Rename APK
         run: |
-          BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
-          echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
-          echo "Last build tool version is: $BUILD_TOOL_VERSION"
-
-      - name: Sign APK
-        uses: kevin-david/zipalign-sign-android-release@v2
-        id: sign_app
-        with:
-          releaseDirectory: androidApp/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-          zipAlign: true
-        env:
-          BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
-
-      - name: Rename signed APK
-        run: |
-          SIGNED_APK=$(find androidApp/build/outputs/apk/release -name '*-signed.apk' | head -n 1)
-          if [ -n "$SIGNED_APK" ]; then
-            mv "$SIGNED_APK" androidApp/build/outputs/apk/release/VibeMusic-${{ github.event.inputs.version }}.apk
-          else
-            APK=$(find androidApp/build/outputs/apk/release -name '*.apk' ! -name '*-unsigned*' | head -n 1)
-            mv "$APK" androidApp/build/outputs/apk/release/VibeMusic-${{ github.event.inputs.version }}.apk
-          fi
+          APK=$(find androidApp/build/outputs/apk/debug -name '*.apk' | head -n 1)
+          mv "$APK" androidApp/build/outputs/apk/debug/VibeMusic-${{ github.event.inputs.version }}.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -90,7 +68,7 @@ jobs:
           name: VibeMusic v${{ github.event.inputs.version }}
           body: ${{ github.event.inputs.release_notes }}
           files: |
-            androidApp/build/outputs/apk/release/VibeMusic-${{ github.event.inputs.version }}.apk
+            androidApp/build/outputs/apk/debug/VibeMusic-${{ github.event.inputs.version }}.apk
           draft: false
           prerelease: false
         env:
