@@ -17,6 +17,7 @@ import com.maxrave.domain.mediaservice.handler.DownloadHandler
 import com.maxrave.domain.repository.AccountRepository
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository
+import com.maxrave.domain.repository.LastFmRepository
 import com.maxrave.domain.repository.SongRepository
 import com.maxrave.domain.utils.LocalResource
 import com.maxrave.logger.LogLevel
@@ -56,6 +57,7 @@ class SettingsViewModel(
     private val songRepository: SongRepository,
     private val accountRepository: AccountRepository,
     private val cacheRepository: CacheRepository,
+    private val lastFmRepository: LastFmRepository,
 ) : BaseViewModel() {
     private val databasePath: String? = commonRepository.getDatabasePath()
     private val downloadUtils: DownloadHandler by inject()
@@ -194,6 +196,16 @@ class SettingsViewModel(
     private val _autoBackupLastTime = MutableStateFlow<Long>(0L)
     val autoBackupLastTime: StateFlow<Long> = _autoBackupLastTime
 
+    // Last.fm
+    private val _lastFmSessionKey = MutableStateFlow<String>("")
+    val lastFmSessionKey: StateFlow<String> = _lastFmSessionKey
+
+    private val _lastFmUsername = MutableStateFlow<String>("")
+    val lastFmUsername: StateFlow<String> = _lastFmUsername
+
+    private val _lastFmEnabled = MutableStateFlow<Boolean>(false)
+    val lastFmEnabled: StateFlow<Boolean> = _lastFmEnabled
+
     private var _alertData: MutableStateFlow<SettingAlertState?> = MutableStateFlow(null)
     val alertData: StateFlow<SettingAlertState?> = _alertData
 
@@ -214,11 +226,23 @@ class SettingsViewModel(
     init {
         getYoutubeSubtitleLanguage()
         getHelpBuildLyricsDatabase()
+        restoreLastFmSession()
         viewModelScope.launch {
             enableLiquidGlass.collect {
                 if (getPlatform() != Platform.Android && it) {
                     setEnableLiquidGlass(false)
                 }
+            }
+        }
+    }
+
+    private fun restoreLastFmSession() {
+        viewModelScope.launch {
+            val sessionKey = dataStoreManager.lastFmSessionKey.first()
+            val username = dataStoreManager.lastFmUsername.first()
+            if (sessionKey.isNotEmpty() && username.isNotEmpty()) {
+                lastFmRepository.setSession(sessionKey, username)
+                Logger.d("SettingsViewModel", "Restored Last.fm session for user: $username")
             }
         }
     }
@@ -283,6 +307,9 @@ class SettingsViewModel(
         getAutoBackupFrequency()
         getAutoBackupMaxFiles()
         getAutoBackupLastTime()
+        getLastFmSessionKey()
+        getLastFmUsername()
+        getLastFmEnabled()
         viewModelScope.launch {
             calculateDataFraction(
                 cacheRepository,
@@ -1565,6 +1592,56 @@ class SettingsViewModel(
         viewModelScope.launch {
             dataStoreManager.setHelpBuildLyricsDatabase(help)
             getHelpBuildLyricsDatabase()
+        }
+    }
+
+    // Last.fm methods
+    private fun getLastFmSessionKey() {
+        viewModelScope.launch {
+            dataStoreManager.lastFmSessionKey.collect { sessionKey ->
+                _lastFmSessionKey.emit(sessionKey)
+            }
+        }
+    }
+
+    private fun getLastFmUsername() {
+        viewModelScope.launch {
+            dataStoreManager.lastFmUsername.collect { username ->
+                _lastFmUsername.emit(username)
+            }
+        }
+    }
+
+    private fun getLastFmEnabled() {
+        viewModelScope.launch {
+            dataStoreManager.lastFmEnabled.collect { enabled ->
+                _lastFmEnabled.emit(enabled == DataStoreManager.TRUE)
+            }
+        }
+    }
+
+    fun setLastFmEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStoreManager.setLastFmEnabled(enabled)
+            getLastFmEnabled()
+        }
+    }
+
+    suspend fun authenticateLastFm() {
+        // Get auth token from Last.fm
+        val tokenResult = lastFmRepository.authenticate()
+        tokenResult.onSuccess { token ->
+            Logger.d("SettingsViewModel", "Got auth token: $token")
+            // TODO: Open browser for user authorization
+            // For now, we'll need to implement a way to open the auth URL
+            val authUrl = lastFmRepository.getAuthUrl(token)
+            Logger.d("SettingsViewModel", "Auth URL: $authUrl")
+            
+            // After user authorizes, we'll need to get the session
+            // This requires a callback mechanism or deep link handling
+            // For now, this is a placeholder for the full OAuth flow
+        }.onFailure { error ->
+            Logger.e("SettingsViewModel", "Failed to get auth token", error)
         }
     }
 }

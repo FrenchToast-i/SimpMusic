@@ -5,9 +5,11 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.maxrave.simpmusic.ui.navigation.destination.login.DiscordLoginDestination
+import com.maxrave.simpmusic.ui.navigation.destination.login.LastFmLoginDestination
 import com.maxrave.simpmusic.ui.navigation.destination.login.LoginDestination
 import com.maxrave.simpmusic.ui.navigation.destination.login.SpotifyLoginDestination
 import com.maxrave.simpmusic.ui.screen.login.DiscordLoginScreen
+import com.maxrave.simpmusic.ui.screen.login.LastFmLoginScreen
 import com.maxrave.simpmusic.ui.screen.login.LoginScreen
 import com.maxrave.simpmusic.ui.screen.login.SpotifyLoginScreen
 
@@ -37,6 +39,15 @@ fun NavGraphBuilder.loginScreenGraph(
 
     composable<DiscordLoginDestination> {
         DiscordLoginScreen(
+            innerPadding = innerPadding,
+            navController = navController,
+            hideBottomNavigation = hideBottomBar,
+            showBottomNavigation = showBottomBar,
+        )
+    }
+
+    composable<LastFmLoginDestination> {
+        LastFmLoginScreen(
             innerPadding = innerPadding,
             navController = navController,
             hideBottomNavigation = hideBottomBar,
